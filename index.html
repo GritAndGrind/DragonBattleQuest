@@ -13,33 +13,48 @@
             flex-direction: column;
             align-items: center;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
+            min-height: 100vh;
+            box-sizing: border-box;
         }
 
         .game-container {
+            width: 100%;
             max-width: 800px;
             text-align: center;
             background-color: #2d2d2d;
-            padding: 20px;
+            padding: 10px;
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin: 10px 0;
+        }
+
+        h3 {
+            font-size: 1rem;
+            margin: 5px 0;
         }
 
         .health-bars {
             display: flex;
-            justify-content: space-between;
-            margin: 20px 0;
+            flex-direction: column;
+            gap: 10px;
+            margin: 10px 0;
         }
 
         .health-bar {
-            width: 45%;
-            padding: 10px;
+            width: 100%;
+            padding: 5px;
             background-color: #3d3d3d;
             border-radius: 5px;
         }
 
         .health {
-            height: 20px;
+            height: 15px;
             border-radius: 3px;
             transition: width 0.5s ease;
         }
@@ -55,45 +70,54 @@
         .ascii-art {
             font-family: monospace;
             white-space: pre;
-            margin: 20px 0;
+            margin: 10px 0;
             color: #ffd700;
+            font-size: 0.7rem;
+            line-height: 1;
         }
 
         .options {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            margin: 20px 0;
+            gap: 8px;
+            margin: 10px 0;
         }
 
         button {
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
             background-color: #4CAF50;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             transition: transform 0.2s, background-color 0.2s;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
 
         button:hover {
             background-color: #45a049;
-            transform: scale(1.05);
+            transform: scale(1.02);
+        }
+
+        button:active {
+            transform: scale(0.98);
         }
 
         .log {
             background-color: #3d3d3d;
-            padding: 10px;
+            padding: 8px;
             border-radius: 5px;
-            max-height: 200px;
+            max-height: 150px;
             overflow-y: auto;
-            margin-top: 20px;
+            margin-top: 10px;
+            font-size: 0.8rem;
         }
 
         .log-entry {
-            margin: 5px 0;
-            padding: 5px;
+            margin: 3px 0;
+            padding: 3px;
             border-bottom: 1px solid #555;
         }
 
@@ -113,16 +137,24 @@
             left: 50%;
             transform: translate(-50%, -50%);
             background-color: #3d3d3d;
-            padding: 20px;
+            padding: 15px;
             border-radius: 10px;
             box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
             text-align: center;
             z-index: 1000;
             display: none;
+            width: 90%;
+            max-width: 300px;
+        }
+
+        .popup h2 {
+            font-size: 1.2rem;
+            margin: 10px 0;
         }
 
         .popup button {
-            margin-top: 20px;
+            margin-top: 10px;
+            width: 100%;
         }
 
         .overlay {
@@ -146,12 +178,69 @@
 
         @keyframes dragon-breathe {
             0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            50% { transform: scale(1.02); }
             100% { transform: scale(1); }
         }
 
         .dragon-animating {
             animation: dragon-breathe 2s infinite;
+        }
+
+        @media (min-width: 768px) {
+            body {
+                padding: 20px;
+            }
+
+            .game-container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            h3 {
+                font-size: 1.2rem;
+            }
+
+            .health-bars {
+                flex-direction: row;
+                justify-content: space-between;
+            }
+
+            .health-bar {
+                width: 45%;
+                padding: 10px;
+            }
+
+            .health {
+                height: 20px;
+            }
+
+            .ascii-art {
+                font-size: 1rem;
+                line-height: 1.2;
+            }
+
+            button {
+                padding: 10px 20px;
+                font-size: 1rem;
+            }
+
+            .log {
+                padding: 10px;
+                max-height: 200px;
+                font-size: 0.9rem;
+            }
+
+            .popup {
+                padding: 20px;
+                max-width: 400px;
+            }
+
+            .popup h2 {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
@@ -287,8 +376,7 @@
                     `
                 }
             },
-            // Add more
-			{
+            {
                 name: "Shadow Serpent",
                 health: 90,
                 attackDamage: () => Math.floor(Math.random() * 25) + 5,
@@ -533,7 +621,7 @@
                     const success = Math.random() < option.blockChance;
                     
                     if (success) {
-const reducedDamage = Math.round(dragonDamage * (1 - option.damageReduction));
+                        const reducedDamage = Math.round(dragonDamage * (1 - option.damageReduction));
                         playerHealth = Math.max(0, playerHealth - reducedDamage);
                         addLogEntry(`Success! ${option.text} reduced damage to ${reducedDamage}!`, true);
                     } else {
@@ -581,7 +669,18 @@ const reducedDamage = Math.round(dragonDamage * (1 - option.damageReduction));
 
         // Start the game when the page loads
         startGame();
+
+        // Prevent scrolling on mobile when interacting with buttons
+        document.addEventListener('touchstart', function(e) {
+            if (e.target.tagName === 'BUTTON') {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // Handle window resize for better responsiveness
+        window.addEventListener('resize', function() {
+            updateHealthBars();
+        });
     </script>
 </body>
 </html>
-						
