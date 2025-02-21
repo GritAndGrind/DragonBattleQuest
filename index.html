@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dragon Battle Quest</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .game-container {
+            max-width: 800px;
+            text-align: center;
+            background-color: #2d2d2d;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+
+        .health-bars {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
+
+        .health-bar {
+            width: 45%;
+            padding: 10px;
+            background-color: #3d3d3d;
+            border-radius: 5px;
+        }
+
+        .health {
+            height: 20px;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        #player-health {
+            background-color: #4CAF50;
+        }
+
+        #dragon-health {
+            background-color: #f44336;
+        }
+
+        .ascii-art {
+            font-family: monospace;
+            white-space: pre;
+            margin: 20px 0;
+            color: #ffd700;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+
+        .log {
+            background-color: #3d3d3d;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #555;
+        }
+
+        .success {
+            color: #4CAF50;
+            animation: flash-green 0.5s;
+        }
+
+        .failure {
+            color: #f44336;
+            animation: flash-red 0.5s;
+        }
+
+        .popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #3d3d3d;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+            text-align: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .popup button {
+            margin-top: 20px;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            z-index: 999;
+        }
+
+        @keyframes flash-green {
+            50% { opacity: 0.3; }
+        }
+
+        @keyframes flash-red {
+            50% { opacity: 0.3; }
+        }
+
+        @keyframes dragon-breathe {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .dragon-animating {
+            animation: dragon-breathe 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="overlay" id="overlay"></div>
+    <div class="popup" id="game-over-popup">
+        <h2 id="popup-message"></h2>
+        <button onclick="restartGame()">Play Again</button>
+    </div>
+
+    <div class="game-container">
+        <h1>Dragon Battle Quest</h1>
+        <h3 id="dragon-name">Fighting: Unknown Dragon</h3>
+        
+        <div class="health-bars">
+            <div class="health-bar">
+                <h3>Player Health</h3>
+                <div style="background-color: #555; border-radius: 3px;">
+                    <div id="player-health" class="health" style="width: 100%;"></div>
+                </div>
+                <p id="player-hp">100/100</p>
+            </div>
+            <div class="health-bar">
+                <h3>Dragon Health</h3>
+                <div style="background-color: #555; border-radius: 3px;">
+                    <div id="dragon-health" class="health" style="width: 100%;"></div>
+                </div>
+                <p id="dragon-hp">100/100</p>
+            </div>
+        </div>
+
+        <div id="game-area">
+            <pre id="ascii-art" class="ascii-art"></pre>
+            <div id="question"></div>
+            <div id="options" class="options"></div>
+        </div>
+
+        <div class="log" id="battle-log">
+            <div class="log-entry">Battle begins! Prepare yourself!</div>
+        </div>
+    </div>
+
+    <script>
+        let playerHealth = 100;
+        let dragonHealth = 100;
+        let isPlayerTurn = true;
+        let currentDragon = null;
+
+        const dragons = [
+            {
+                name: "Fire Drake",
+                health: 100,
+                attackDamage: () => Math.floor(Math.random() * 20) + 10,
+                specialMechanic: "Fire Breath (must dodge)",
+                attackOptions: [
+                    { text: "Strike at the dragon's knee", damage: 15, successChance: 0.7 },
+                    { text: "Aim for the dragon's wings", damage: 20, successChance: 0.5 },
+                    { text: "Attack the fire glands", damage: 25, successChance: 0.4 }
+                ],
+                defenseOptions: [
+                    { text: "Raise your shield", blockChance: 0.8, damageReduction: 0.7 },
+                    { text: "Dodge the fire breath", blockChance: 0.6, damageReduction: 1 },
+                    { text: "Parry with your sword", blockChance: 0.5, damageReduction: 0.8 }
+                ],
+                asciiArt: {
+                    attack: `
+      /|\
+     / | \
+    /  |  \
+   /___|___\
+   |  ***  |  Player preparing to attack!
+   |  ***  |
+   |_______|
+                    `,
+                    defend: `
+      ___
+     /   \
+    /_____\
+    | *** |   Player preparing to defend!
+    | *** |
+    |_____|
+                    `,
+                    dragonAttack: `
+    /_/\  
+   /    \ 
+  /______\
+  |  ***  |   Fire Drake preparing to attack!
+  |  ***  |
+  |_______|
+                    `
+                }
+            },
+            {
+                name: "Ice Wyrm",
+                health: 110,
+                attackDamage: () => Math.floor(Math.random() * 15) + 15,
+                specialMechanic: "Ice Armor (must break)",
+                attackOptions: [
+                    { text: "Strike at the ice armor", damage: 10, successChance: 0.8 },
+                    { text: "Aim for the frozen tail", damage: 15, successChance: 0.6 },
+                    { text: "Attack the icy core", damage: 20, successChance: 0.5 }
+                ],
+                defenseOptions: [
+                    { text: "Block with shield", blockChance: 0.7, damageReduction: 0.6 },
+                    { text: "Dodge the ice shards", blockChance: 0.5, damageReduction: 1 },
+                    { text: "Counter the freeze", blockChance: 0.4, damageReduction: 0.7 }
+                ],
+                asciiArt: {
+                    attack: `
+      /|\
+     / | \
+    /  |  \
+   /___|___\
+   |  ***  |  Player preparing to attack!
+   |  ***  |
+   |_______|
+                    `,
+                    defend: `
+      ___
+     /   \
+    /_____\
+    | *** |   Player preparing to defend!
+    | *** |
+    |_____|
+                    `,
+                    dragonAttack: `
+    /_/\  
+   /    \ 
+  /______\
+  |  ***  |   Ice Wyrm preparing to attack!
+  |  ***  |
+  |_______|
+                    `
+                }
+            },
+            // Add more
+			{
+                name: "Shadow Serpent",
+                health: 90,
+                attackDamage: () => Math.floor(Math.random() * 25) + 5,
+                specialMechanic: "Illusion (must find real dragon)",
+                attackOptions: [
+                    { text: "Strike at the shadow", damage: 10, successChance: 0.5 },
+                    { text: "Aim for the glowing eyes", damage: 20, successChance: 0.6 },
+                    { text: "Attack the real form", damage: 25, successChance: 0.4 }
+                ],
+                defenseOptions: [
+                    { text: "Block shadow strike", blockChance: 0.6, damageReduction: 0.7 },
+                    { text: "Dodge the illusion", blockChance: 0.7, damageReduction: 1 },
+                    { text: "Counter the darkness", blockChance: 0.5, damageReduction: 0.8 }
+                ],
+                asciiArt: {
+                    attack: `
+      /|\
+     / | \
+    /  |  \
+   /___|___\
+   |  ***  |  Player preparing to attack!
+   |  ***  |
+   |_______|
+                    `,
+                    defend: `
+      ___
+     /   \
+    /_____\
+    | *** |   Player preparing to defend!
+    | *** |
+    |_____|
+                    `,
+                    dragonAttack: `
+    /_/\  
+   /    \ 
+  /______\
+  |  ***  |   Shadow Serpent preparing to attack!
+  |  ***  |
+  |_______|
+                    `
+                }
+            },
+            {
+                name: "Thunder Wyvern",
+                health: 95,
+                attackDamage: () => Math.floor(Math.random() * 20) + 10,
+                specialMechanic: "Lightning Charge (must ground)",
+                attackOptions: [
+                    { text: "Strike at the charged scales", damage: 15, successChance: 0.6 },
+                    { text: "Aim for the lightning horn", damage: 20, successChance: 0.5 },
+                    { text: "Attack the energy core", damage: 25, successChance: 0.4 }
+                ],
+                defenseOptions: [
+                    { text: "Ground the lightning", blockChance: 0.7, damageReduction: 0.8 },
+                    { text: "Dodge the electric blast", blockChance: 0.6, damageReduction: 1 },
+                    { text: "Counter the charge", blockChance: 0.5, damageReduction: 0.7 }
+                ],
+                asciiArt: {
+                    attack: `
+      /|\
+     / | \
+    /  |  \
+   /___|___\
+   |  ***  |  Player preparing to attack!
+   |  ***  |
+   |_______|
+                    `,
+                    defend: `
+      ___
+     /   \
+    /_____\
+    | *** |   Player preparing to defend!
+    | *** |
+    |_____|
+                    `,
+                    dragonAttack: `
+    /_/\  
+   /    \ 
+  /______\
+  |  ***  |   Thunder Wyvern preparing to attack!
+  |  ***  |
+  |_______|
+                    `
+                }
+            },
+            {
+                name: "Crystal Dragon",
+                health: 105,
+                attackDamage: () => Math.floor(Math.random() * 18) + 12,
+                specialMechanic: "Crystal Reflect (must break crystals)",
+                attackOptions: [
+                    { text: "Strike at the crystal armor", damage: 12, successChance: 0.7 },
+                    { text: "Aim for the crystal core", damage: 18, successChance: 0.5 },
+                    { text: "Attack the reflective scales", damage: 22, successChance: 0.4 }
+                ],
+                defenseOptions: [
+                    { text: "Block crystal shards", blockChance: 0.7, damageReduction: 0.6 },
+                    { text: "Dodge the reflection", blockChance: 0.6, damageReduction: 1 },
+                    { text: "Counter the crystal beam", blockChance: 0.5, damageReduction: 0.7 }
+                ],
+                asciiArt: {
+                    attack: `
+      /|\
+     / | \
+    /  |  \
+   /___|___\
+   |  ***  |  Player preparing to attack!
+   |  ***  |
+   |_______|
+                    `,
+                    defend: `
+      ___
+     /   \
+    /_____\
+    | *** |   Player preparing to defend!
+    | *** |
+    |_____|
+                    `,
+                    dragonAttack: `
+    /_/\  
+   /    \ 
+  /______\
+  |  ***  |   Crystal Dragon preparing to attack!
+  |  ***  |
+  |_______|
+                    `
+                }
+            }
+        ];
+
+        function updateHealthBars() {
+            document.getElementById('player-health').style.width = `${playerHealth}%`;
+            document.getElementById('dragon-health').style.width = `${dragonHealth}%`;
+            document.getElementById('player-hp').textContent = `${playerHealth}/100`;
+            document.getElementById('dragon-hp').textContent = `${dragonHealth}/${currentDragon.health}`;
+        }
+
+        function addLogEntry(message, isSuccess = null) {
+            const log = document.getElementById('battle-log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            if (isSuccess === true) entry.classList.add('success');
+            if (isSuccess === false) entry.classList.add('failure');
+            entry.textContent = message;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function animateDragonArt(art) {
+            const artElement = document.getElementById('ascii-art');
+            artElement.classList.add('dragon-animating');
+            artElement.textContent = art;
+            setTimeout(() => {
+                artElement.classList.remove('dragon-animating');
+            }, 2000);
+        }
+
+        function showGameOverPopup(message, isVictory) {
+            const popup = document.getElementById('game-over-popup');
+            const overlay = document.getElementById('overlay');
+            const popupMessage = document.getElementById('popup-message');
+            
+            popupMessage.textContent = message;
+            popup.style.display = 'block';
+            overlay.style.display = 'block';
+            
+            popup.style.backgroundColor = isVictory ? '#2d4d2d' : '#4d2d2d';
+        }
+
+        function checkGameOver() {
+            if (playerHealth <= 0) {
+                document.getElementById('question').textContent = "You have been defeated!";
+                document.getElementById('options').innerHTML = '';
+                animateDragonArt(`
+    X_X
+    /|\
+   / | \
+  /  |  \
+ /___|___\
+                `);
+                addLogEntry("Game Over: The dragon has defeated you!", false);
+                showGameOverPopup(`You were brought down in battle by the ${currentDragon.name}!`, false);
+                return true;
+            }
+            if (dragonHealth <= 0) {
+                document.getElementById('question').textContent = "Victory! The dragon has been defeated!";
+                document.getElementById('options').innerHTML = '';
+                animateDragonArt(`
+    ^_^
+    /|\
+   / | \
+  /  |  \
+ /___|___\
+                `);
+                addLogEntry("Victory: You have defeated the dragon!", true);
+                showGameOverPopup(`You defeated the ${currentDragon.name}!`, true);
+                return true;
+            }
+            return false;
+        }
+
+        function playerAttack() {
+            animateDragonArt(currentDragon.asciiArt.attack);
+            document.getElementById('question').textContent = `Choose your attack against the ${currentDragon.name} (${currentDragon.specialMechanic}):`;
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+
+            currentDragon.attackOptions.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option.text;
+                button.onclick = () => {
+                    const success = Math.random() < option.successChance;
+                    if (success) {
+                        dragonHealth = Math.max(0, dragonHealth - option.damage);
+                        addLogEntry(`Success! ${option.text} deals ${option.damage} damage!`, true);
+                    } else {
+                        addLogEntry(`Failed! ${option.text} missed!`, false);
+                    }
+                    updateHealthBars();
+                    if (!checkGameOver()) {
+                        setTimeout(dragonTurn, 1000);
+                    }
+                };
+                optionsDiv.appendChild(button);
+            });
+        }
+
+        function dragonTurn() {
+            isPlayerTurn = false;
+            animateDragonArt(currentDragon.asciiArt.dragonAttack);
+            document.getElementById('question').textContent = `The ${currentDragon.name} attacks! How will you defend? (${currentDragon.specialMechanic})`;
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+
+            const dragonDamage = currentDragon.attackDamage();
+
+            currentDragon.defenseOptions.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option.text;
+                button.onclick = () => {
+                    animateDragonArt(currentDragon.asciiArt.defend);
+                    const success = Math.random() < option.blockChance;
+                    
+                    if (success) {
+const reducedDamage = Math.round(dragonDamage * (1 - option.damageReduction));
+                        playerHealth = Math.max(0, playerHealth - reducedDamage);
+                        addLogEntry(`Success! ${option.text} reduced damage to ${reducedDamage}!`, true);
+                    } else {
+                        playerHealth = Math.max(0, playerHealth - dragonDamage);
+                        addLogEntry(`Failed! ${option.text} failed, taking ${dragonDamage} damage!`, false);
+                    }
+                    
+                    updateHealthBars();
+                    if (!checkGameOver()) {
+                        isPlayerTurn = true;
+                        setTimeout(playerAttack, 1000);
+                    }
+                };
+                optionsDiv.appendChild(button);
+            });
+        }
+
+        function restartGame() {
+            const popup = document.getElementById('game-over-popup');
+            const overlay = document.getElementById('overlay');
+            popup.style.display = 'none';
+            overlay.style.display = 'none';
+            startGame();
+        }
+
+        function startGame() {
+            // Select random dragon
+            currentDragon = dragons[Math.floor(Math.random() * dragons.length)];
+            playerHealth = 100;
+            dragonHealth = currentDragon.health;
+            isPlayerTurn = true;
+            
+            // Update dragon name display
+            document.getElementById('dragon-name').textContent = `Fighting: ${currentDragon.name} (${currentDragon.specialMechanic})`;
+            
+            updateHealthBars();
+            
+            // Clear previous log entries
+            const log = document.getElementById('battle-log');
+            log.innerHTML = '<div class="log-entry">Battle begins! Prepare yourself!</div>';
+            addLogEntry(`You encounter a ${currentDragon.name}! Special mechanic: ${currentDragon.specialMechanic}`);
+            
+            playerAttack();
+        }
+
+        // Start the game when the page loads
+        startGame();
+    </script>
+</body>
+</html>
+						
