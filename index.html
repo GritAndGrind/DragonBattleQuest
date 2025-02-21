@@ -2,9 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dragon Battle Quest</title>
     <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            touch-action: none;
+        }
+
         body {
             font-family: Arial, sans-serif;
             background-color: #1a1a1a;
@@ -12,9 +20,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin: 0;
             padding: 10px;
-            min-height: 100vh;
             box-sizing: border-box;
         }
 
@@ -27,6 +33,8 @@
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
             box-sizing: border-box;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         h1 {
@@ -81,6 +89,7 @@
             flex-direction: column;
             gap: 8px;
             margin: 10px 0;
+            touch-action: manipulation;
         }
 
         button {
@@ -94,6 +103,9 @@
             transition: transform 0.2s, background-color 0.2s;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
         }
 
         button:hover {
@@ -113,6 +125,7 @@
             overflow-y: auto;
             margin-top: 10px;
             font-size: 0.8rem;
+            -webkit-overflow-scrolling: touch;
         }
 
         .log-entry {
@@ -302,7 +315,7 @@
                 ],
                 defenseOptions: [
                     { text: "Raise your shield", blockChance: 0.8, damageReduction: 0.7 },
-                    { text: "Dodge the fire breath", blockChance: 0.6, damageReduction: 1 },
+{ text: "Dodge the fire breath", blockChance: 0.6, damageReduction: 1 },
                     { text: "Parry with your sword", blockChance: 0.5, damageReduction: 0.8 }
                 ],
                 asciiArt: {
@@ -557,7 +570,7 @@
   /  |  \
  /___|___\
                 `);
-                addLogEntry("Game Over: The dragon has defeated you!", false);
+addLogEntry("Game Over: The dragon has defeated you!", false);
                 showGameOverPopup(`You were brought down in battle by the ${currentDragon.name}!`, false);
                 return true;
             }
@@ -587,7 +600,8 @@
             currentDragon.attackOptions.forEach(option => {
                 const button = document.createElement('button');
                 button.textContent = option.text;
-                button.onclick = () => {
+                button.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
                     const success = Math.random() < option.successChance;
                     if (success) {
                         dragonHealth = Math.max(0, dragonHealth - option.damage);
@@ -599,7 +613,21 @@
                     if (!checkGameOver()) {
                         setTimeout(dragonTurn, 1000);
                     }
-                };
+                }, { passive: false });
+                button.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const success = Math.random() < option.successChance;
+                    if (success) {
+                        dragonHealth = Math.max(0, dragonHealth - option.damage);
+                        addLogEntry(`Success! ${option.text} deals ${option.damage} damage!`, true);
+                    } else {
+                        addLogEntry(`Failed! ${option.text} missed!`, false);
+                    }
+                    updateHealthBars();
+                    if (!checkGameOver()) {
+                        setTimeout(dragonTurn, 1000);
+                    }
+                });
                 optionsDiv.appendChild(button);
             });
         }
@@ -616,7 +644,8 @@
             currentDragon.defenseOptions.forEach(option => {
                 const button = document.createElement('button');
                 button.textContent = option.text;
-                button.onclick = () => {
+                button.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
                     animateDragonArt(currentDragon.asciiArt.defend);
                     const success = Math.random() < option.blockChance;
                     
@@ -634,7 +663,27 @@
                         isPlayerTurn = true;
                         setTimeout(playerAttack, 1000);
                     }
-                };
+                }, { passive: false });
+                button.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    animateDragonArt(currentDragon.asciiArt.defend);
+                    const success = Math.random() < option.blockChance;
+                    
+                    if (success) {
+                        const reducedDamage = Math.round(dragonDamage * (1 - option.damageReduction));
+                        playerHealth = Math.max(0, playerHealth - reducedDamage);
+                        addLogEntry(`Success! ${option.text} reduced damage to ${reducedDamage}!`, true);
+                    } else {
+                        playerHealth = Math.max(0, playerHealth - dragonDamage);
+                        addLogEntry(`Failed! ${option.text} failed, taking ${dragonDamage} damage!`, false);
+                    }
+                    
+                    updateHealthBars();
+                    if (!checkGameOver()) {
+                        isPlayerTurn = true;
+                        setTimeout(playerAttack, 1000);
+                    }
+                });
                 optionsDiv.appendChild(button);
             });
         }
@@ -648,18 +697,14 @@
         }
 
         function startGame() {
-            // Select random dragon
             currentDragon = dragons[Math.floor(Math.random() * dragons.length)];
             playerHealth = 100;
             dragonHealth = currentDragon.health;
             isPlayerTurn = true;
             
-            // Update dragon name display
             document.getElementById('dragon-name').textContent = `Fighting: ${currentDragon.name} (${currentDragon.specialMechanic})`;
-            
             updateHealthBars();
             
-            // Clear previous log entries
             const log = document.getElementById('battle-log');
             log.innerHTML = '<div class="log-entry">Battle begins! Prepare yourself!</div>';
             addLogEntry(`You encounter a ${currentDragon.name}! Special mechanic: ${currentDragon.specialMechanic}`);
@@ -667,17 +712,27 @@
             playerAttack();
         }
 
-        // Start the game when the page loads
-        startGame();
+        // Prevent default touch behaviors
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
 
-        // Prevent scrolling on mobile when interacting with buttons
-        document.addEventListener('touchstart', function(e) {
-            if (e.target.tagName === 'BUTTON') {
+        document.addEventListener('touchstart', (e) => {
+            if (!e.target.closest('.log') && !e.target.closest('.popup')) {
                 e.preventDefault();
             }
         }, { passive: false });
 
-        // Handle window resize for better responsiveness
+        // Allow scrolling only in the log
+        const logElement = document.querySelector('.log');
+        logElement.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+        }, { passive: true });
+
+        // Start the game
+        startGame();
+
+        // Handle window resize
         window.addEventListener('resize', function() {
             updateHealthBars();
         });
